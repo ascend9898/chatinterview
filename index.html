@@ -1,24 +1,47 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>Mini-Interview</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    body{font-family:system-ui,sans-serif;max-width:600px;margin:2rem auto}
-    #prompt{margin-bottom:1rem;font-weight:600}
-    textarea{width:100%;height:120px;padding:.5rem}
-    button{margin-top:.5rem;padding:.4rem .8rem}
-  </style>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<meta charset="utf-8">
+<title>Mini-Interview</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<style>
+/* ─── simple WhatsApp-style layout ─── */
+body{font-family:system-ui,sans-serif;background:#ece5dd;margin:0}
+.wrapper{max-width:600px;margin:0 auto;height:100vh;display:flex;flex-direction:column}
+.title{background:#075e54;color:#fff;padding:1rem;font-weight:600}
+.box{flex:1;overflow-y:auto;padding:1rem;background:#e5ddd5}
+.item{margin:.5rem 0;display:flex;align-items:flex-end}
+.item .icon{width:32px;height:32px;border-radius:50%;background:#bbb;color:#fff;
+            display:flex;align-items:center;justify-content:center;margin-right:.5rem}
+.item.right{justify-content:flex-end}
+.item.right .msg{background:#dcf8c6;color:#000}
+.msg{background:#fff;padding:.6rem .8rem;border-radius:6px;max-width:75%;box-shadow:0 1px 2px rgba(0,0,0,.1)}
+.typing-area{padding:.7rem;background:#f0f0f0}
+.input-field{display:flex}
+input[type=text]{flex:1;padding:.6rem;border:1px solid #ccc;border-radius:4px;
+                 outline:none;font-size:1rem}
+button{margin-left:.5rem;padding:.6rem 1rem;background:#128c7e;color:#fff;border:none;
+       border-radius:4px;font-size:1rem;cursor:pointer}
+button:disabled{background:#999;cursor:not-allowed}
+</style>
+<!-- Supabase JS (UMD build) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
+<div class="wrapper">
+  <div class="title">Mini-Interview</div>
+  <div class="box" id="chat"></div>
 
-<h2>Mini-Interview</h2>
-<div id="prompt"></div>
-
-<textarea id="answer" spellcheck="false" autocomplete="off" onpaste="return false"></textarea>
-<button id="send">Send</button>
+  <div class="typing-area">
+    <div class="input-field">
+      <input id="inp" type="text" placeholder="Type your reply"
+             spellcheck="false" autocomplete="off" onpaste="return false">
+      <button id="send">Send</button>
+    </div>
+  </div>
+</div>
 
 <script>
 /* 1 ─ Supabase client (your credentials) */
@@ -27,7 +50,7 @@ const sb = window.supabase.createClient(
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlpdWtuZW1jdHB0YnBhYWFvdHF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIzMzE4NjYsImV4cCI6MjA2NzkwNzg2Nn0.cX9115JCnsfiRi39S2MpxacKDpgChz3Gq9x59GHPz9Y"
 );
 
-/* 2 ─ prompts (edit/add as needed) */
+/* 2 ─ prompts (edit / add freely) */
 const PROMPTS = [
   "What's your email address?",
   "What's your name?",
@@ -39,50 +62,70 @@ const PROMPTS = [
 
 /* 3 ─ interview state */
 let i = 0;
-const promptEl = document.getElementById("prompt");
-const answerTA = document.getElementById("answer");
-const sendBtn  = document.getElementById("send");
+const chat   = document.getElementById("chat");
+const inp    = document.getElementById("inp");
+const send   = document.getElementById("send");
+const meta   = {};
+const answers = [];
+let ks = [];
 
-const meta      = {};     // stores email & name
-const responses = [];     // stores every Q/A
-let ks = [];              // keystrokes for current answer
+/* helper: add a bubble */
+function bubble(text, right=false){
+  const item = document.createElement("div");
+  item.className = "item" + (right?" right":"");
+  if(!right){
+    const icon = document.createElement("div");
+    icon.className="icon";
+    icon.innerHTML='<i class="fa fa-user"></i>';
+    item.appendChild(icon);
+  }
+  const msg = document.createElement("div");
+  msg.className="msg";
+  msg.innerText = text;
+  item.appendChild(msg);
+  chat.appendChild(item);
+  chat.scrollTop = chat.scrollHeight;
+}
 
-promptEl.textContent = PROMPTS[0];
-answerTA.focus();
+/* show first prompt */
+bubble(PROMPTS[0]);
 
 /* capture keystrokes */
-answerTA.onkeydown = e => ks.push({t:Date.now(),k:e.key});
+inp.onkeydown = e => ks.push({t:Date.now(),k:e.key});
 
-/* send/next */
-sendBtn.onclick = async () => {
-  const text = answerTA.value.trim();
-  if (!text) return alert("Please type something 😊");
+/* send handler */
+function handleSend(){
+  const text = inp.value.trim();
+  if(!text) return;
+  /* user bubble */
+  bubble(text,true);
 
-  if (i === 0) meta.email = text;
-  if (i === 1) meta.name  = text;
+  /* store meta & answers */
+  if(i===0) meta.email=text;
+  if(i===1) meta.name =text;
+  answers.push({prompt:PROMPTS[i],answer:text,keystrokes:ks});
+  /* reset for next answer */
+  ks=[]; inp.value=""; inp.focus();
 
-  responses.push({prompt:PROMPTS[i],answer:text,keystrokes:ks});
-
+  /* next prompt or finish */
   i++;
-  if (i < PROMPTS.length) {
-    promptEl.textContent = PROMPTS[i];
-    answerTA.value = "";
-    ks = [];
-    answerTA.focus();
-  } else {
-    promptEl.textContent = "✅ Thanks, you’re done!";
-    answerTA.disabled = true;
-    sendBtn.disabled  = true;
-
+  if(i<PROMPTS.length){
+    setTimeout(()=>bubble(PROMPTS[i]),300);
+  }else{
+    bubble("✅ Thanks, you’re done!");
+    inp.disabled=true; send.disabled=true;
     /* one-row insert */
-    await sb.from("interview_submissions").insert({
-      name  : meta.name  || null,
-      email : meta.email || null,
-      answers: responses,
-      inserted_at: new Date().toISOString()
+    sb.from("interview_submissions").insert({
+      name:meta.name||null,
+      email:meta.email||null,
+      answers:answers,
+      inserted_at:new Date().toISOString()
     });
   }
-};
+}
+/* click or Enter */
+send.onclick = handleSend;
+inp.addEventListener("keyup",e=>{if(e.key==="Enter") handleSend();});
 </script>
 </body>
 </html>
