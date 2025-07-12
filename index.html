@@ -34,8 +34,8 @@ button:disabled{background:#999;cursor:not-allowed}
 
 <!-- Supabase UMD -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<!-- EmojiButton UMD (adds window.EmojiButton.default) -->
-<script src="https://cdn.jsdelivr.net/npm/@joeattardi/emoji-button@4.6.4/dist/emoji-button.min.js"></script>
+<!-- EmojiButton UMD – THIS is the correct constructor build -->
+<script src="https://cdn.jsdelivr.net/npm/@joeattardi/emoji-button@4.6.4/dist/index.js"></script>
 </head>
 <body>
 <div class="wrapper">
@@ -53,13 +53,13 @@ button:disabled{background:#999;cursor:not-allowed}
 </div>
 
 <script>
-/* 1 ─ Supabase */
+/* 1 — Supabase */
 const sb = window.supabase.createClient(
   "https://yiuknemctptbpaaaotqv.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlpdWtuZW1jdHB0YnBhYWFvdHF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIzMzE4NjYsImV4cCI6MjA2NzkwNzg2Nn0.cX9115JCnsfiRi39S2MpxacKDpgChz3Gq9x59GHPz9Y"
 );
 
-/* 2 ─ prompts */
+/* 2 — prompts */
 const PROMPTS = [
   "What's your email address?",
   "What's your name?",
@@ -69,7 +69,7 @@ const PROMPTS = [
   "I’m parked at this truck stop—the largest here in California. I’ve had my dinner and I’m just chilling, enjoying my Bud Light lol… How was your day?"
 ];
 
-/* 3 ─ state */
+/* 3 — state */
 let i = 0;
 const chat   = document.getElementById("chat");
 const inp    = document.getElementById("inp");
@@ -80,7 +80,7 @@ const meta = {};
 const answers = [];
 let ks    = [];
 
-/* helper */
+/* helper for chat bubbles */
 function bubble(txt,right=false){
   const item=document.createElement("div");
   item.className="item"+(right?" right":"");
@@ -96,22 +96,21 @@ function bubble(txt,right=false){
   chat.scrollTop=chat.scrollHeight;
 }
 
-/* first question */
+/* first prompt */
 bubble(PROMPTS[0]); inp.focus();
 
-/* keystroke / edit */
-function log(k){ ks.push({t:Date.now(),k}); }
-inp.onkeydown = e => log(e.key);
+/* keystroke / edit log */
+const log = k => ks.push({t:Date.now(),k});
+inp.onkeydown = e=>log(e.key);
 inp.addEventListener("input",()=>log("edit/emoji"));
 
-/* emoji picker */
-const EB = window.EmojiButton?.default || window.EmojiButton;   // working global
-const picker = new EB({ position:'top-end', zIndex:9999 });
+/* 4 — emoji picker (constructor now loads) */
+const picker = new window.EmojiButton({ position:'top-end', zIndex:9999 });
 emojiBtn.onclick = () => picker.togglePicker(emojiBtn);
 picker.on('emoji', e => { inp.value += e.emoji; log(e.emoji); inp.focus(); });
 
-/* send / enter */
-send.onclick = handle;
+/* 5 — Send / Enter */
+send.onclick=handle;
 inp.addEventListener("keyup",e=>{ if(e.key==="Enter") handle(); });
 
 async function handle(){
