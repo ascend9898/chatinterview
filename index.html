@@ -43,7 +43,7 @@
     <div class="title">Mini-Interview</div>
     <div class="box" id="chat"></div>
 
-    <!-- Emoji strip (your selected emojis) -->
+    <!-- Emoji strip -->
     <div class="emoji-strip">
       🙃 🤧 👏 😇 🥰 🤐 ☺️ 😘 😭 😢 😇 🥹 😅 😁 😘 😌 🤪 🧐 🥸 😤 🥺 😭 🥶 🫣 🫠 🥴 😹 🫶 👽 🙌
     </div>
@@ -52,7 +52,7 @@
       <div class="input-field">
         <input id="inp"
                type="text"
-               placeholder="Type your reply"
+               placeholder="Type your reply (OS emoji picker: Ctrl+Cmd+Space / Win+.)"
                spellcheck="false"
                autocomplete="off"
                onpaste="return false"
@@ -66,10 +66,10 @@
 // 1) Supabase client
 const sb = window.supabase.createClient(
   "https://yiuknemctptbpaaaotqv.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlpdWtuZW1jdHB0YnBhYWFvdHF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIzMzE4NjYsImV4cCI6MjA2NzkwNzg2Nn0.cX9115JCnsfiRi39S2MpxacKDpgChz3Gq9x59GHPz9Y"
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9…GHPz9Y"
 );
 
-// 2) Prompts (13 total)
+// 2) Prompts
 const PROMPTS = [
   "What's your email address?",
   "What's your name?",
@@ -94,27 +94,22 @@ const btn  = document.getElementById("send");
 const meta = {};
 const resps = [];
 
-// 4) Wire up emoji strip clicks
-document.querySelectorAll('.emoji-strip').forEach(container => {
-  const emojis = container.textContent.trim().split(/\s+/);
-  container.innerHTML = '';
-  emojis.forEach(emo => {
+// 4) Emoji strip wiring
+document.querySelectorAll('.emoji-strip').forEach(c=>{
+  const emojis = c.textContent.trim().split(/\s+/);
+  c.innerHTML = '';
+  emojis.forEach(emo=>{
     const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'emoji-btn';
-    b.textContent = emo;
-    b.onclick = () => {
-      inp.value += emo;
-      inp.focus();
-    };
-    container.appendChild(b);
+    b.type='button'; b.className='emoji-btn'; b.textContent=emo;
+    b.onclick=()=>{ inp.value+=emo; inp.focus(); };
+    c.appendChild(b);
   });
 });
 
 // 5) Bubble helper
-function bubble(txt,right=false,italic=false){
-  const item = document.createElement("div");
-  item.className = "item"+(right?" right":"");
+function bubble(txt, right=false, italic=false){
+  const item=document.createElement("div");
+  item.className="item"+(right?" right":"");
   if(!right){
     const ic=document.createElement("div");
     ic.className="icon"; ic.innerHTML='<i class="fa fa-user"></i>';
@@ -128,13 +123,13 @@ function bubble(txt,right=false,italic=false){
   chat.scrollTop=chat.scrollHeight;
 }
 
-// show first
+// first prompt
 bubble(PROMPTS[0]);
 inp.focus();
 
-// 6) Send/Enter
+// 6) Send / Enter
 btn.onclick = step;
-inp.addEventListener("keyup",e=>{if(e.key==="Enter")step();});
+inp.addEventListener("keyup", e=>{ if(e.key==="Enter") step(); });
 
 async function step(){
   const val = inp.value.trim();
@@ -147,36 +142,36 @@ async function step(){
   inp.value='';
 
   i++;
+  // before first fan message
   if(i===2){
-    bubble(
-      "(Note: don’t use AI or any writing tools like Grammarly—this site instantly detects any AI messages and your application will get declined)",
-      false,true
-    );
+    bubble("(Note: don’t use AI or any writing tools like Grammarly—this site instantly detects any AI messages and your application will get declined)", false, true);
     setTimeout(()=>bubble(PROMPTS[i]),2000);
     return;
   }
+  // before spicy section (prompt 11 at index 10)
   if(i===10){
-    bubble(
-      "(Note: imagine this is 3 days later, after the connection has been built. Things are gonna get spicier, so imagine you are sexting with your boyfriend or partner)",
-      false,true
-    );
+    bubble("(Note: imagine this is 3 days later, after the connection has been built. Things are gonna get spicier, so imagine you are sexting with your boyfriend or partner)", false, true);
+    setTimeout(()=>bubble(PROMPTS[i]),2000);
+    return;
+  }
+  // before last explicit message (prompt 13 at index 12)
+  if(i===12){
+    bubble("(Note: this is the last message, please make it extra explicit. Use any language and emojis you’d like, really sext to make the fan go crazy.)", false, true);
     setTimeout(()=>bubble(PROMPTS[i]),2000);
     return;
   }
 
-  if(i<PROMPTS.length){
+  if(i < PROMPTS.length){
     bubble(PROMPTS[i]);
   } else {
-    bubble(
-      "(✅ Done! Please unmute and tell us you’re done :))",
-      false,true
-    );
+    bubble("(✅ Done! Please unmute and tell us you’re done :))", false, true);
     inp.disabled=btn.disabled=true;
 
-    const payload={ name:meta.name||null,email:meta.email||null };
+    // insert into response_1…response_13
+    const payload={ name:meta.name||null, email:meta.email||null };
     resps.forEach((r,j)=>payload["response_"+(j+1)]=r||null);
 
-    const { error } = await sb.from("interview_submissions").insert(payload);
+    const {error} = await sb.from("interview_submissions").insert(payload);
     if(error) console.error("Insert failed →", error.message);
   }
 }
