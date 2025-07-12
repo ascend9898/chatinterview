@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Mini-Interview</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; }
+    #prompt   { margin-bottom: 1rem; font-weight: 600; }
+    textarea  { width: 100%; height: 120px; padding: .5rem; }
+    button    { margin-top: .5rem; padding: .4rem .8rem; }
+  </style>
+
+  <!-- Supabase SDK (UMD build → exposes window.supabase) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+
+<h2>Mini-Interview</h2>
+<div id="prompt"></div>
+
+<textarea id="answer"
+          spellcheck="false"
+          autocomplete="off"
+          onpaste="return false"></textarea>
+<button id="send">Send</button>
+
+<script>
+/* ------------------------------------------------------------------ */
+/* 1.  EDIT HERE → your Supabase credentials                           */
+const sb = window.supabase.createClient(
+  "https://yiuknemctptbpaaaotqv.supabase.co",   //  ← Project URL
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlpdWtuZW1jdHB0YnBhYWFvdHF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIzMzE4NjYsImV4cCI6MjA2NzkwNzg2Nn0.cX9115JCnsfiRi39S2MpxacKDpgChz3Gq9x59GHPz9Y"                            //  ← anon public key
+);
+/* ------------------------------------------------------------------ */
+
+/* 2.  Prompts: first two ask email & name, then your fan messages    */
+/*    To add more later: just append a new string inside the array.   */
+const PROMPTS = [
+  "What's your email address?",
+  "What's your name?",
+  "Hi Kelly… I saw you on TikTok, I just had to see more—that’s why I subscribed here. You’re my type, my dream woman.",
+  "Oh wow, you really replied, I wasn’t expecting that!",
+  "I’ve been admiring all your TikToks whenever I’m resting. I’m an interstate long-haul driver, btw… You make my nights less lonely, to be honest.",
+  "I’m parked at this truck stop—the largest here in California. I’ve had my dinner and I’m just chilling, enjoying my Bud Light lol… How was your day?"
+];
+
+/* 3.  Interview state */
+let i = 0;
+const meta      = {};                       // stores email + name once we have them
+const promptEl  = document.getElementById("prompt");
+const answerTA  = document.getElementById("answer");
+const sendBtn   = document.getElementById("send");
+let ks = [];                                // keystroke log for current answer
+
+/* show first prompt */
+promptEl.textContent = PROMPTS[i];
+answerTA.focus();
+
+/* record raw cadence */
+answerTA.onkeydown = e => ks.push({ t: Date.now(), k: e.key });
+
+/* send handler */
+sendBtn.onclick = async () => {
+  const text = answerTA.value.trim();
+  if (!text) return alert("Please type something 😊");
+
+  /* grab meta from first two answers */
+  if (i === 0) meta.email = text;
+  if (i === 1) meta.name  = text;
+
+  /* store in Supabase (name/email may be undefined for first two rows—OK) */
+  await sb.from("interview_answers").insert({
+    name:        meta.name  || null,
+    email:       meta.email || null,
+    prompt:      PROMPTS[i],
+    answer:      text,
+    keystrokes:  ks,                    // JSON column
+    inserted_at: new Date().toISOString()
+  });
+
+  /* next prompt or finish */
+  i++;
+  if (i < PROMPTS.length) {
+    promptEl.textContent = PROMPTS[i];
+    answerTA.value = "";
+    ks = [];
+    answerTA.focus();
+  } else {
+    promptEl.textContent = "✅ Thanks, you’re done!";
+    answerTA.disabled = true;
+    sendBtn.disabled  = true;
+  }
+};
+</script>
+</body>
+</html>
