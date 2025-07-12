@@ -9,7 +9,7 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 
 <style>
-/* chat layout */
+/* chat UI */
 body{font-family:system-ui,sans-serif;background:#ece5dd;margin:0}
 .wrapper{max-width:600px;margin:0 auto;height:100vh;display:flex;flex-direction:column}
 .title{background:#075e54;color:#fff;padding:1rem;font-weight:600}
@@ -21,8 +21,7 @@ body{font-family:system-ui,sans-serif;background:#ece5dd;margin:0}
 .item.right .msg{background:#dcf8c6}
 .msg{background:#fff;padding:.6rem .8rem;border-radius:6px;max-width:75%;
      box-shadow:0 1px 2px rgba(0,0,0,.1);word-break:break-word}
-
-/* typing bar (position:relative enables absolute picker) */
+/* typing bar */
 .typing-area{padding:.7rem;background:#f0f0f0;position:relative}
 .input-field{display:flex;align-items:center;gap:.5rem}
 input[type=text]{flex:1;padding:.6rem;border:1px solid #ccc;border-radius:4px;
@@ -31,17 +30,12 @@ button{padding:.55rem .9rem;background:#128c7e;color:#fff;border:none;
        border-radius:4px;font-size:1rem;cursor:pointer}
 button:disabled{background:#999;cursor:not-allowed}
 #emojiBtn{background:#aaa}
-
-/* emoji picker pops above the bar */
-emoji-picker{position:absolute;bottom:60px;right:0;z-index:999;
-             box-shadow:0 2px 6px rgba(0,0,0,.2)}
 </style>
 
-<!-- Supabase SDK – UMD build -->
+<!-- Supabase SDK – UMD -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<!-- Emoji-picker web-component -->
-<script type="module"
-        src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1"></script>
+<!-- EmojiButton picker (no sub-modules) -->
+<script src="https://cdn.jsdelivr.net/npm/@joeattardi/emoji-button@4.6.4/dist/index.min.js"></script>
 </head>
 <body>
 <div class="wrapper">
@@ -54,19 +48,18 @@ emoji-picker{position:absolute;bottom:60px;right:0;z-index:999;
              spellcheck="false" autocomplete="off" onpaste="return false">
       <button id="emojiBtn">😊</button>
       <button id="send">Send</button>
-      <emoji-picker id="picker" style="display:none"></emoji-picker>
     </div>
   </div>
 </div>
 
 <script>
-/* 1 – Supabase client (your keys) */
+/* 1 ─ Supabase client */
 const sb = window.supabase.createClient(
   "https://yiuknemctptbpaaaotqv.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlpdWtuZW1jdHB0YnBhYWFvdHF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIzMzE4NjYsImV4cCI6MjA2NzkwNzg2Nn0.cX9115JCnsfiRi39S2MpxacKDpgChz3Gq9x59GHPz9Y"
 );
 
-/* 2 – prompts */
+/* 2 ─ prompts */
 const PROMPTS = [
   "What's your email address?",
   "What's your name?",
@@ -76,53 +69,55 @@ const PROMPTS = [
   "I’m parked at this truck stop—the largest here in California. I’ve had my dinner and I’m just chilling, enjoying my Bud Light lol… How was your day?"
 ];
 
-/* 3 – state */
+/* 3 ─ state */
 let i = 0;
 const chat   = document.getElementById("chat");
 const inp    = document.getElementById("inp");
 const send   = document.getElementById("send");
-const picker = document.getElementById("picker");
 const emojiBtn = document.getElementById("emojiBtn");
 
 const meta   = {};
 const answers = [];
 let ks = [];
 
-/* helper */
+/* bubbles */
 function bubble(text,right=false){
-  const div=document.createElement("div");
-  div.className="item"+(right?" right":"");
+  const item=document.createElement("div");
+  item.className="item"+(right?" right":"");
   if(!right){
     const ic=document.createElement("div");
     ic.className="icon"; ic.innerHTML='<i class="fa fa-user"></i>';
-    div.appendChild(ic);
+    item.appendChild(ic);
   }
   const m=document.createElement("div");
   m.className="msg"; m.textContent=text;
-  div.appendChild(m);
-  chat.appendChild(div);
+  item.appendChild(m);
+  chat.appendChild(item);
   chat.scrollTop=chat.scrollHeight;
 }
 
 /* first prompt */
-bubble(PROMPTS[0]); inp.focus();
+bubble(PROMPTS[0]);
+inp.focus();
 
-/* log keystrokes / edits / emoji adds */
+/* keystroke / emoji logging */
 function log(label){ ks.push({t:Date.now(),k:label}); }
 inp.onkeydown = e=>log(e.key);
 inp.addEventListener("input",()=>log("edit/emoji"));
 
-/* emoji button */
-emojiBtn.onclick = ()=>{picker.style.display = picker.style.display?"none":""; picker.focus();};
-picker.addEventListener("emoji-click",e=>{
-  inp.value += e.detail.unicode;
-  log(e.detail.unicode);
-  picker.style.display="none"; inp.focus();
+/* Emoji picker (EmojiButton) */
+const picker = new EmojiButton({ position:'top-end', zIndex:9999 });
+emojiBtn.addEventListener('click', () => picker.togglePicker(emojiBtn));
+picker.on('emoji', emoji => {
+  inp.value += emoji;
+  log(emoji);
+  inp.focus();
 });
 
-/* send */
+/* send / enter */
 send.onclick = handle;
 inp.addEventListener("keyup",e=>{if(e.key==="Enter")handle();});
+
 async function handle(){
   const txt=inp.value.trim(); if(!txt) return;
   bubble(txt,true);
@@ -139,7 +134,6 @@ async function handle(){
     bubble("✅ Thanks, you’re done!");
     inp.disabled=send.disabled=emojiBtn.disabled=true;
 
-    /* insert & log any error */
     const {error}=await sb.from("interview_submissions").insert({
       name:meta.name||null,email:meta.email||null,
       answers,inserted_at:new Date().toISOString()
