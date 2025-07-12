@@ -5,27 +5,36 @@
   <title>Mini-Interview</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body{user-select:none;font-family:system-ui,sans-serif;background:#ece5dd;margin:0}
-    .wrapper{max-width:600px;margin:0 auto;height:100vh;display:flex;flex-direction:column}
-    .title{background:#075e54;color:#fff;padding:1rem;font-weight:600}
-    .box{flex:1;overflow-y:auto;padding:1rem;background:#e5ddd5}
-    .item{margin:.5rem 0;display:flex;align-items:flex-end}
-    .item .icon{width:32px;height:32px;border-radius:50%;background:#bbb;color:#fff;
-               display:flex;align-items:center;justify-content:center;margin-right:.5rem}
-    .item.right{justify-content:flex-end}
-    .msg{padding:.6rem .8rem;border-radius:6px;max-width:75%;
-         box-shadow:0 1px 2px rgba(0,0,0,.1);word-break:break-word;}
-    .item .msg{background:#fff;}
-    .item.right .msg{background:#dcf8c6;}
-    .msg.italic{font-style:italic;color:#444;}
-    .typing-area{padding:.7rem;background:#f0f0f0}
-    .input-field{display:flex;gap:.5rem}
-    input[type=text]{flex:1;padding:.6rem;border:1px solid #ccc;border-radius:4px;
-                     outline:none;font-size:1rem;user-select:text}
-    input[type=text][oncopy]{oncopy="return false"}
-    button{padding:.55rem .9rem;background:#128c7e;color:#fff;border:none;
-           border-radius:4px;font-size:1rem;cursor:pointer}
-    button:disabled{background:#999;cursor:not-allowed}
+    /* ─ disable selection except in input ─ */
+    body { user-select: none; font-family: system-ui, sans-serif; background: #ece5dd; margin: 0; }
+    input { user-select: text; }
+
+    .wrapper { max-width:600px; margin:0 auto; height:100vh; display:flex; flex-direction:column; }
+    .title   { background:#075e54; color:#fff; padding:1rem; font-weight:600; }
+    .box     { flex:1; overflow-y:auto; padding:1rem; background:#e5ddd5; }
+
+    .item { margin:.5rem 0; display:flex; align-items:flex-end; }
+    .item .icon { width:32px; height:32px; border-radius:50%; background:#bbb; color:#fff;
+                  display:flex; align-items:center; justify-content:center; margin-right:.5rem; }
+    .item.right { justify-content:flex-end; }
+    .msg { padding:.6rem .8rem; border-radius:6px; max-width:75%;
+           box-shadow:0 1px 2px rgba(0,0,0,.1); word-break:break-word; }
+    .item .msg { background:#fff; }
+    .item.right .msg { background:#dcf8c6; }
+    .msg.italic { font-style:italic; color:#444; }
+
+    /* emoji strip */
+    .emoji-strip { padding:0 .7rem .5rem; display:flex; gap:.5rem; flex-wrap:wrap; }
+    .emoji-btn { background:none; border:none; font-size:1.5rem; cursor:pointer; line-height:1; }
+    .emoji-btn:focus { outline:none; }
+
+    .typing-area { padding:.7rem; background:#f0f0f0; }
+    .input-field { display:flex; gap:.5rem; }
+    input[type=text] { flex:1; padding:.6rem; border:1px solid #ccc; border-radius:4px;
+                       outline:none; font-size:1rem; }
+    button { padding:.55rem .9rem; background:#128c7e; color:#fff; border:none;
+             border-radius:4px; font-size:1rem; cursor:pointer; }
+    button:disabled { background:#999; cursor:not-allowed; }
   </style>
 
   <!-- Supabase UMD -->
@@ -35,11 +44,18 @@
   <div class="wrapper">
     <div class="title">Mini-Interview</div>
     <div class="box" id="chat"></div>
+
+    <!-- Emoji strip (all your requested emojis) -->
+    <div class="emoji-strip">
+      🤣 😇 😌 😗 😛 🤨 🥸 😏 ☹️ 🙂 😍 😙 😝 🧐 🤩 😒 😊 🙃 😘 😜 🤔 🤖 😹 😱 🎃 😻 😥 🙌 👍 👉 🤞 🤟 😺 😡 😠 🙏 👎 👈 ✌️ 👌
+      <!-- We'll wire up clicks below -->
+    </div>
+
     <div class="typing-area">
       <div class="input-field">
         <input id="inp"
                type="text"
-               placeholder="Type your reply (use your OS emoji picker: Ctrl+Cmd+Space or Win+.)"
+               placeholder="Type your reply"
                spellcheck="false"
                autocomplete="off"
                onpaste="return false"
@@ -49,104 +65,127 @@
     </div>
   </div>
 
-  <script>
-  // 1) Supabase client
-  const sb = window.supabase.createClient(
-    "https://yiuknemctptbpaaaotqv.supabase.co",
-    "eyJhbGc…59GHPz9Y"
-  );
+<script>
+// 1) Supabase client
+const sb = window.supabase.createClient(
+  "https://yiuknemctptbpaaaotqv.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9…GHPz9Y"
+);
 
-  // 2) Prompts (13 total)
-  const PROMPTS = [
-    "What's your email address?",
-    "What's your name?",
-    "Hi Kelly...I saw you on Tiktok, I just had to see more that's why I subscribed here\nYou're my type,my dream woman",
-    "Oh wow, you really replied, I wasn't expecting that\nI've been admiring all your tiktoks, whenever im resting, im an interstate long haul driver\nbtw... You make my nights less lonely to be honest",
-    "Are you at home now? Or you're still at work wearing your blue tight fit dress that shows off your\nlegs and wonderful curves",
-    "I'm parked at this truck stop, the largest here in California, I've had my dinner and I'm just\nchilling, enjoying my Bud Light lol...how was your day?",
-    "So what are you wearing now?\nWill you let me see?",
-    "Looking at beautiful women like yourself helps me relieve stress\nAre you a wine and dine type of woman or an iced coffee and let's go and do it type?",
-    "Do you like tall and fit men?\nI could really get lost in your eyes and those curves damn!",
-    "I could really get lost in your eyes and those curves damn!\nI think you look great...on top of me or under me",
-    "Hi I just woke up with a huge boner, what are you gonna do with it? ;)",
-    "What are you planning to do with this baby...Daddy needs your help\nIf you're here with me now, what are you going to do to help Daddy?",
-    "Can you handle this monster baby girl, are you going to suck it or ride Daddy until Sunrise"
-  ];
+// 2) Prompts
+const PROMPTS = [
+  "What's your email address?",
+  "What's your name?",
+  "Hi Kelly...I saw you on Tiktok, I just had to see more that's why I subscribed here\nYou're my type,my dream woman",
+  "Oh wow, you really replied, I wasn't expecting that\nI've been admiring all your tiktoks, whenever im resting, im an interstate long haul driver\nbtw... You make my nights less lonely to be honest",
+  "Are you at home now? Or you're still at work wearing your blue tight fit dress that shows off your\nlegs and wonderful curves",
+  "I'm parked at this truck stop, the largest here in California, I've had my dinner and I'm just\nchilling, enjoying my Bud Light lol...how was your day?",
+  "So what are you wearing now?\nWill you let me see?",
+  "Looking at beautiful women like yourself helps me relieve stress\nAre you a wine and dine type of woman or an iced coffee and let's go and do it type?",
+  "Do you like tall and fit men?\nI could really get lost in your eyes and those curves damn!",
+  "I could really get lost in your eyes and those curves damn!\nI think you look great...on top of me or under me",
+  "Hi I just woke up with a huge boner, what are you gonna do with it? ;)",
+  "What are you planning to do with this baby...Daddy needs your help\nIf you're here with me now, what are you going to do to help Daddy?",
+  "Can you handle this monster baby girl, are you going to suck it or ride Daddy until Sunrise"
+];
 
-  // 3) State
-  let i = 0;
-  const chat = document.getElementById("chat");
-  const inp  = document.getElementById("inp");
-  const btn  = document.getElementById("send");
-  const meta = {};
-  const resps = [];
+// 3) State
+let i = 0;
+const chat = document.getElementById("chat");
+const inp  = document.getElementById("inp");
+const btn  = document.getElementById("send");
+const meta = {};
+const resps = [];
 
-  // 4) Bubble helper
-  function bubble(txt, right=false, italic=false) {
-    const item = document.createElement("div");
-    item.className = "item" + (right ? " right" : "");
-    if (!right) {
-      const ic = document.createElement("div");
-      ic.className="icon";
-      ic.innerHTML='<i class="fa fa-user"></i>';
-      item.appendChild(ic);
-    }
-    const m = document.createElement("div");
-    m.className = "msg" + (italic ? " italic" : "");
-    m.textContent = txt;
-    item.appendChild(m);
-    chat.appendChild(item);
-    chat.scrollTop = chat.scrollHeight;
+// 4) Wire up emoji strip clicks
+document.querySelectorAll('.emoji-strip').forEach(container => {
+  // split text into individual emoji tokens
+  const nodes = container.textContent.trim().split(/\s+/);
+  container.innerHTML = ''; // clear
+  nodes.forEach(emo => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'emoji-btn';
+    b.textContent = emo;
+    b.onclick = () => {
+      inp.value += emo;
+      inp.focus();
+    };
+    container.appendChild(b);
+  });
+});
+
+// 5) Bubble helper
+function bubble(txt,right=false,italic=false){
+  const item = document.createElement("div");
+  item.className = "item" + (right?" right":"");
+  if(!right){
+    const ic=document.createElement("div");
+    ic.className="icon"; ic.innerHTML='<i class="fa fa-user"></i>';
+    item.appendChild(ic);
+  }
+  const m=document.createElement("div");
+  m.className="msg"+(italic?" italic":"");
+  m.textContent=txt;
+  item.appendChild(m);
+  chat.appendChild(item);
+  chat.scrollTop=chat.scrollHeight;
+}
+
+// show first prompt
+bubble(PROMPTS[0]);
+inp.focus();
+
+// 6) Send / Enter handler
+btn.onclick = step;
+inp.addEventListener("keyup",e=>{ if(e.key==="Enter") step(); });
+
+async function step(){
+  const val = inp.value.trim();
+  if(!val) return;
+
+  bubble(val,true);
+  if(i===0) meta.email=val;
+  if(i===1) meta.name=val;
+  resps[i]=val;
+  inp.value='';
+
+  i++;
+
+  if(i===2){
+    bubble(
+      "(Note: don’t use AI or any writing tools like Grammarly—this site instantly detects any AI messages and your application will get declined)",
+      false,true
+    );
+    setTimeout(()=> bubble(PROMPTS[i]),2000);
+    return;
+  }
+  if(i===10){
+    bubble(
+      "(Note: imagine this is 3 days later, after the connection has been built. Things are gonna get spicier, so imagine you are sexting with your boyfriend or partner)",
+      false,true
+    );
+    setTimeout(()=> bubble(PROMPTS[i]),2000);
+    return;
   }
 
-  // show Q1
-  bubble(PROMPTS[0]);
-  inp.focus();
+  if(i < PROMPTS.length){
+    bubble(PROMPTS[i]);
+  } else {
+    bubble(
+      "(✅ Done! Please unmute and tell us you’re done :))",
+      false,true
+    );
+    inp.disabled=btn.disabled=true;
 
-  // 5) Send / Enter
-  btn.onclick = step;
-  inp.addEventListener("keyup", e => { if(e.key==="Enter") step(); });
+    // build payload
+    const payload = { name:meta.name||null, email:meta.email||null };
+    resps.forEach((r,j)=> payload["response_"+(j+1)] = r||null);
 
-  async function step(){
-    const val = inp.value.trim();
-    if(!val) return;
-
-    bubble(val, true);
-    // record meta
-    if(i===0) meta.email = val;
-    if(i===1) meta.name  = val;
-    resps[i] = val;
-    inp.value="";
-
-    i++;
-    // before first fan message
-    if(i===2) {
-      bubble("(Note: don’t use AI or any writing tools like Grammarly—this site instantly detects any AI messages and your application will get declined)", false, true);
-    }
-    // before spicy section (message 11 is index 10)
-    if(i===10) {
-      bubble("(Note: imagine this is 3 days later, after the connection has been built. Things are gonna get spicier, so imagine you are sexting with your boyfriend or partner)", false, true);
-    }
-
-    if(i < PROMPTS.length) {
-      bubble(PROMPTS[i]);
-    } else {
-      // final fan message shown above, now the done note:
-      bubble("(✅ Done! Please unmute and tell us you’re done :))", false, true);
-      inp.disabled = btn.disabled = true;
-
-      // insert into individual columns
-      const payload = {
-        name:   meta.name || null,
-        email:  meta.email|| null
-      };
-      for(let k=0; k<resps.length; k++){
-        payload["response_"+(k+1)] = resps[k]||null;
-      }
-      const { error } = await sb.from("interview_submissions").insert(payload);
-      if(error) console.error("Insert failed →", error.message);
-    }
+    const { error } = await sb.from("interview_submissions").insert(payload);
+    if(error) console.error("Insert failed →", error.message);
   }
-  </script>
+}
+</script>
 </body>
 </html>
