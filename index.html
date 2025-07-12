@@ -76,7 +76,7 @@ sendBtn.onclick = async () => {
   if (!text) return alert("Please type something 😊");
 
   // 3a – store in Supabase
-  await supabase.from("interview_answers").insert({
+  await sb.from(.from("interview_answers").insert({
     name: meta.name,
     email: meta.email,
     prompt: PROMPTS[i],
