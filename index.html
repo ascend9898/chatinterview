@@ -9,7 +9,7 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 
 <style>
-/* chat UI */
+/* chat layout */
 body{font-family:system-ui,sans-serif;background:#ece5dd;margin:0}
 .wrapper{max-width:600px;margin:0 auto;height:100vh;display:flex;flex-direction:column}
 .title{background:#075e54;color:#fff;padding:1rem;font-weight:600}
@@ -34,8 +34,8 @@ button:disabled{background:#999;cursor:not-allowed}
 
 <!-- Supabase SDK – UMD -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<!-- EmojiButton picker (no sub-modules) -->
-<script src="https://cdn.jsdelivr.net/npm/@joeattardi/emoji-button@4.6.4/dist/index.min.js"></script>
+<!-- EmojiButton UMD build (sets window.EmojiButton) -->
+<script src="https://cdn.jsdelivr.net/npm/@joeattardi/emoji-button@4.6.4/dist/emoji-button.min.js"></script>
 </head>
 <body>
 <div class="wrapper">
@@ -53,7 +53,7 @@ button:disabled{background:#999;cursor:not-allowed}
 </div>
 
 <script>
-/* 1 ─ Supabase client */
+/* 1 ─ Supabase */
 const sb = window.supabase.createClient(
   "https://yiuknemctptbpaaaotqv.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlpdWtuZW1jdHB0YnBhYWFvdHF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIzMzE4NjYsImV4cCI6MjA2NzkwNzg2Nn0.cX9115JCnsfiRi39S2MpxacKDpgChz3Gq9x59GHPz9Y"
@@ -80,8 +80,8 @@ const meta   = {};
 const answers = [];
 let ks = [];
 
-/* bubbles */
-function bubble(text,right=false){
+/* bubble helper */
+function bubble(t,right=false){
   const item=document.createElement("div");
   item.className="item"+(right?" right":"");
   if(!right){
@@ -90,33 +90,28 @@ function bubble(text,right=false){
     item.appendChild(ic);
   }
   const m=document.createElement("div");
-  m.className="msg"; m.textContent=text;
+  m.className="msg"; m.textContent=t;
   item.appendChild(m);
   chat.appendChild(item);
   chat.scrollTop=chat.scrollHeight;
 }
 
 /* first prompt */
-bubble(PROMPTS[0]);
-inp.focus();
+bubble(PROMPTS[0]); inp.focus();
 
-/* keystroke / emoji logging */
-function log(label){ ks.push({t:Date.now(),k:label}); }
-inp.onkeydown = e=>log(e.key);
+/* keystrokes & edits */
+function log(l){ ks.push({t:Date.now(),k:l}); }
+inp.onkeydown=e=>log(e.key);
 inp.addEventListener("input",()=>log("edit/emoji"));
 
-/* Emoji picker (EmojiButton) */
-const picker = new EmojiButton({ position:'top-end', zIndex:9999 });
-emojiBtn.addEventListener('click', () => picker.togglePicker(emojiBtn));
-picker.on('emoji', emoji => {
-  inp.value += emoji;
-  log(emoji);
-  inp.focus();
-});
+/* emoji picker */
+const picker = new window.EmojiButton({ position:'top-end', zIndex:9999 });
+emojiBtn.onclick=()=>picker.togglePicker(emojiBtn);
+picker.on('emoji', e=>{inp.value+=e.emoji;log(e.emoji);inp.focus();});
 
 /* send / enter */
-send.onclick = handle;
-inp.addEventListener("keyup",e=>{if(e.key==="Enter")handle();});
+send.onclick=handle;
+inp.addEventListener("keyup",e=>{if(e.key==="Enter") handle();});
 
 async function handle(){
   const txt=inp.value.trim(); if(!txt) return;
@@ -134,11 +129,13 @@ async function handle(){
     bubble("✅ Thanks, you’re done!");
     inp.disabled=send.disabled=emojiBtn.disabled=true;
 
-    const {error}=await sb.from("interview_submissions").insert({
-      name:meta.name||null,email:meta.email||null,
-      answers,inserted_at:new Date().toISOString()
+    const { error } = await sb.from("interview_submissions").insert({
+      name:meta.name||null,
+      email:meta.email||null,
+      answers,
+      inserted_at:new Date().toISOString()
     });
-    if(error) console.error("Supabase insert failed →",error.message);
+    if(error) console.error("Supabase insert failed →", error.message);
   }
 }
 </script>
