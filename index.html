@@ -32,9 +32,9 @@ button:disabled{background:#999;cursor:not-allowed}
 #emojiBtn{background:#aaa}
 </style>
 
-<!-- Supabase SDK – UMD -->
+<!-- Supabase UMD -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<!-- EmojiButton UMD build (sets window.EmojiButton) -->
+<!-- EmojiButton UMD (adds window.EmojiButton.default) -->
 <script src="https://cdn.jsdelivr.net/npm/@joeattardi/emoji-button@4.6.4/dist/emoji-button.min.js"></script>
 </head>
 <body>
@@ -76,12 +76,12 @@ const inp    = document.getElementById("inp");
 const send   = document.getElementById("send");
 const emojiBtn = document.getElementById("emojiBtn");
 
-const meta   = {};
+const meta = {};
 const answers = [];
-let ks = [];
+let ks    = [];
 
-/* bubble helper */
-function bubble(t,right=false){
+/* helper */
+function bubble(txt,right=false){
   const item=document.createElement("div");
   item.className="item"+(right?" right":"");
   if(!right){
@@ -90,50 +90,53 @@ function bubble(t,right=false){
     item.appendChild(ic);
   }
   const m=document.createElement("div");
-  m.className="msg"; m.textContent=t;
+  m.className="msg"; m.textContent=txt;
   item.appendChild(m);
   chat.appendChild(item);
   chat.scrollTop=chat.scrollHeight;
 }
 
-/* first prompt */
+/* first question */
 bubble(PROMPTS[0]); inp.focus();
 
-/* keystrokes & edits */
-function log(l){ ks.push({t:Date.now(),k:l}); }
-inp.onkeydown=e=>log(e.key);
+/* keystroke / edit */
+function log(k){ ks.push({t:Date.now(),k}); }
+inp.onkeydown = e => log(e.key);
 inp.addEventListener("input",()=>log("edit/emoji"));
 
 /* emoji picker */
-const picker = new window.EmojiButton({ position:'top-end', zIndex:9999 });
-emojiBtn.onclick=()=>picker.togglePicker(emojiBtn);
-picker.on('emoji', e=>{inp.value+=e.emoji;log(e.emoji);inp.focus();});
+const EB = window.EmojiButton?.default || window.EmojiButton;   // working global
+const picker = new EB({ position:'top-end', zIndex:9999 });
+emojiBtn.onclick = () => picker.togglePicker(emojiBtn);
+picker.on('emoji', e => { inp.value += e.emoji; log(e.emoji); inp.focus(); });
 
 /* send / enter */
-send.onclick=handle;
-inp.addEventListener("keyup",e=>{if(e.key==="Enter") handle();});
+send.onclick = handle;
+inp.addEventListener("keyup",e=>{ if(e.key==="Enter") handle(); });
 
 async function handle(){
-  const txt=inp.value.trim(); if(!txt) return;
-  bubble(txt,true);
+  const txt = inp.value.trim();
+  if(!txt) return;
 
+  bubble(txt,true);
   if(i===0) meta.email=txt;
   if(i===1) meta.name =txt;
-  answers.push({prompt:PROMPTS[i],answer:txt,keystrokes:ks});
+  answers.push({ prompt:PROMPTS[i], answer:txt, keystrokes:ks });
+
   ks=[]; inp.value=""; inp.focus();
 
   i++;
-  if(i<PROMPTS.length){
+  if(i < PROMPTS.length){
     setTimeout(()=>bubble(PROMPTS[i]),300);
   }else{
     bubble("✅ Thanks, you’re done!");
-    inp.disabled=send.disabled=emojiBtn.disabled=true;
+    inp.disabled = send.disabled = emojiBtn.disabled = true;
 
     const { error } = await sb.from("interview_submissions").insert({
-      name:meta.name||null,
-      email:meta.email||null,
+      name:   meta.name  || null,
+      email:  meta.email || null,
       answers,
-      inserted_at:new Date().toISOString()
+      inserted_at: new Date().toISOString()
     });
     if(error) console.error("Supabase insert failed →", error.message);
   }
