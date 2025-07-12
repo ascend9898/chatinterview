@@ -5,7 +5,6 @@
   <title>Mini-Interview</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    /* ─ disable selection except in input ─ */
     body { user-select: none; font-family: system-ui, sans-serif; background: #ece5dd; margin: 0; }
     input { user-select: text; }
 
@@ -23,7 +22,6 @@
     .item.right .msg { background:#dcf8c6; }
     .msg.italic { font-style:italic; color:#444; }
 
-    /* emoji strip */
     .emoji-strip { padding:0 .7rem .5rem; display:flex; gap:.5rem; flex-wrap:wrap; }
     .emoji-btn { background:none; border:none; font-size:1.5rem; cursor:pointer; line-height:1; }
     .emoji-btn:focus { outline:none; }
@@ -45,10 +43,9 @@
     <div class="title">Mini-Interview</div>
     <div class="box" id="chat"></div>
 
-    <!-- Emoji strip (all your requested emojis) -->
+    <!-- Emoji strip (your selected emojis) -->
     <div class="emoji-strip">
-      🤣 😇 😌 😗 😛 🤨 🥸 😏 ☹️ 🙂 😍 😙 😝 🧐 🤩 😒 😊 🙃 😘 😜 🤔 🤖 😹 😱 🎃 😻 😥 🙌 👍 👉 🤞 🤟 😺 😡 😠 🙏 👎 👈 ✌️ 👌
-      <!-- We'll wire up clicks below -->
+      🙃 🤧 👏 😇 🥰 🤐 ☺️ 😘 😭 😢 😇 🥹 😅 😁 😘 😌 🤪 🧐 🥸 😤 🥺 😭 🥶 🫣 🫠 🥴 😹 🫶 👽 🙌
     </div>
 
     <div class="typing-area">
@@ -72,7 +69,7 @@ const sb = window.supabase.createClient(
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9…GHPz9Y"
 );
 
-// 2) Prompts
+// 2) Prompts (13 total)
 const PROMPTS = [
   "What's your email address?",
   "What's your name?",
@@ -99,10 +96,9 @@ const resps = [];
 
 // 4) Wire up emoji strip clicks
 document.querySelectorAll('.emoji-strip').forEach(container => {
-  // split text into individual emoji tokens
-  const nodes = container.textContent.trim().split(/\s+/);
-  container.innerHTML = ''; // clear
-  nodes.forEach(emo => {
+  const emojis = container.textContent.trim().split(/\s+/);
+  container.innerHTML = '';
+  emojis.forEach(emo => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'emoji-btn';
@@ -118,7 +114,7 @@ document.querySelectorAll('.emoji-strip').forEach(container => {
 // 5) Bubble helper
 function bubble(txt,right=false,italic=false){
   const item = document.createElement("div");
-  item.className = "item" + (right?" right":"");
+  item.className = "item"+(right?" right":"");
   if(!right){
     const ic=document.createElement("div");
     ic.className="icon"; ic.innerHTML='<i class="fa fa-user"></i>';
@@ -132,13 +128,13 @@ function bubble(txt,right=false,italic=false){
   chat.scrollTop=chat.scrollHeight;
 }
 
-// show first prompt
+// show first
 bubble(PROMPTS[0]);
 inp.focus();
 
-// 6) Send / Enter handler
+// 6) Send/Enter
 btn.onclick = step;
-inp.addEventListener("keyup",e=>{ if(e.key==="Enter") step(); });
+inp.addEventListener("keyup",e=>{if(e.key==="Enter")step();});
 
 async function step(){
   const val = inp.value.trim();
@@ -151,13 +147,12 @@ async function step(){
   inp.value='';
 
   i++;
-
   if(i===2){
     bubble(
       "(Note: don’t use AI or any writing tools like Grammarly—this site instantly detects any AI messages and your application will get declined)",
       false,true
     );
-    setTimeout(()=> bubble(PROMPTS[i]),2000);
+    setTimeout(()=>bubble(PROMPTS[i]),2000);
     return;
   }
   if(i===10){
@@ -165,11 +160,11 @@ async function step(){
       "(Note: imagine this is 3 days later, after the connection has been built. Things are gonna get spicier, so imagine you are sexting with your boyfriend or partner)",
       false,true
     );
-    setTimeout(()=> bubble(PROMPTS[i]),2000);
+    setTimeout(()=>bubble(PROMPTS[i]),2000);
     return;
   }
 
-  if(i < PROMPTS.length){
+  if(i<PROMPTS.length){
     bubble(PROMPTS[i]);
   } else {
     bubble(
@@ -178,9 +173,8 @@ async function step(){
     );
     inp.disabled=btn.disabled=true;
 
-    // build payload
-    const payload = { name:meta.name||null, email:meta.email||null };
-    resps.forEach((r,j)=> payload["response_"+(j+1)] = r||null);
+    const payload={ name:meta.name||null,email:meta.email||null };
+    resps.forEach((r,j)=>payload["response_"+(j+1)]=r||null);
 
     const { error } = await sb.from("interview_submissions").insert(payload);
     if(error) console.error("Insert failed →", error.message);
