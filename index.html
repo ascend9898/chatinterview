@@ -39,8 +39,8 @@ meta.email = prompt("Your email?");
 /* ------------------------------------------------------------------ */
 /*  2.  Supabase – paste your own credentials here once               */
 /* ------------------------------------------------------------------ */
-const supabase = supabase.createClient(
-  "https://yiuknemctptbpaaaotqv.supabase.co",   //  ← URL  (from Supabase > Project Settings)
+// create ONE Supabase client and call it “sb”
+const sb = window.supabase.createClient(  "https://yiuknemctptbpaaaotqv.supabase.co",   //  ← URL  (from Supabase > Project Settings)
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlpdWtuZW1jdHB0YnBhYWFvdHF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIzMzE4NjYsImV4cCI6MjA2NzkwNzg2Nn0.cX9115JCnsfiRi39S2MpxacKDpgChz3Gq9x59GHPz9Y"                     //  ← anon public key
 );
 
