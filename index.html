@@ -4,30 +4,39 @@
 <meta charset="utf-8">
 <title>Mini-Interview</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
 <link rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
 <style>
-/* ─── simple WhatsApp-style layout ─── */
+/* ───── WhatsApp-style chat UI ───── */
 body{font-family:system-ui,sans-serif;background:#ece5dd;margin:0}
 .wrapper{max-width:600px;margin:0 auto;height:100vh;display:flex;flex-direction:column}
 .title{background:#075e54;color:#fff;padding:1rem;font-weight:600}
 .box{flex:1;overflow-y:auto;padding:1rem;background:#e5ddd5}
 .item{margin:.5rem 0;display:flex;align-items:flex-end}
 .item .icon{width:32px;height:32px;border-radius:50%;background:#bbb;color:#fff;
-            display:flex;align-items:center;justify-content:center;margin-right:.5rem}
+           display:flex;align-items:center;justify-content:center;margin-right:.5rem}
 .item.right{justify-content:flex-end}
-.item.right .msg{background:#dcf8c6;color:#000}
-.msg{background:#fff;padding:.6rem .8rem;border-radius:6px;max-width:75%;box-shadow:0 1px 2px rgba(0,0,0,.1)}
+.item.right .msg{background:#dcf8c6}
+.msg{background:#fff;padding:.6rem .8rem;border-radius:6px;max-width:75%;
+     box-shadow:0 1px 2px rgba(0,0,0,.1);word-break:break-word}
 .typing-area{padding:.7rem;background:#f0f0f0}
-.input-field{display:flex}
+.input-field{display:flex;align-items:center;gap:.5rem}
 input[type=text]{flex:1;padding:.6rem;border:1px solid #ccc;border-radius:4px;
                  outline:none;font-size:1rem}
-button{margin-left:.5rem;padding:.6rem 1rem;background:#128c7e;color:#fff;border:none;
+button{padding:.55rem .9rem;background:#128c7e;color:#fff;border:none;
        border-radius:4px;font-size:1rem;cursor:pointer}
 button:disabled{background:#999;cursor:not-allowed}
+#emojiBtn{background:#aaa}
+emoji-picker{position:absolute;bottom:70px;right:10px;box-shadow:0 2px 6px rgba(0,0,0,.2)}
 </style>
-<!-- Supabase JS (UMD build) -->
+
+<!-- Supabase SDK – UMD build -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<!-- Emoji picker Web Component -->
+<script type="module"
+        src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1"></script>
 </head>
 <body>
 <div class="wrapper">
@@ -38,7 +47,9 @@ button:disabled{background:#999;cursor:not-allowed}
     <div class="input-field">
       <input id="inp" type="text" placeholder="Type your reply"
              spellcheck="false" autocomplete="off" onpaste="return false">
+      <button id="emojiBtn">😊</button>
       <button id="send">Send</button>
+      <emoji-picker id="picker" style="display:none;"></emoji-picker>
     </div>
   </div>
 </div>
@@ -50,7 +61,7 @@ const sb = window.supabase.createClient(
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlpdWtuZW1jdHB0YnBhYWFvdHF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIzMzE4NjYsImV4cCI6MjA2NzkwNzg2Nn0.cX9115JCnsfiRi39S2MpxacKDpgChz3Gq9x59GHPz9Y"
 );
 
-/* 2 ─ prompts (edit / add freely) */
+/* 2 ─ prompts */
 const PROMPTS = [
   "What's your email address?",
   "What's your name?",
@@ -65,67 +76,83 @@ let i = 0;
 const chat   = document.getElementById("chat");
 const inp    = document.getElementById("inp");
 const send   = document.getElementById("send");
-const meta   = {};
-const answers = [];
+const picker = document.getElementById("picker");
+const emojiBtn = document.getElementById("emojiBtn");
+
+const meta     = {};
+const answers  = [];
 let ks = [];
 
-/* helper: add a bubble */
-function bubble(text, right=false){
+/* bubble helper */
+function bubble(txt,right=false){
   const item = document.createElement("div");
-  item.className = "item" + (right?" right":"");
+  item.className="item"+(right?" right":"");
   if(!right){
-    const icon = document.createElement("div");
+    const icon=document.createElement("div");
     icon.className="icon";
     icon.innerHTML='<i class="fa fa-user"></i>';
     item.appendChild(icon);
   }
-  const msg = document.createElement("div");
-  msg.className="msg";
-  msg.innerText = text;
-  item.appendChild(msg);
+  const m=document.createElement("div");
+  m.className="msg"; m.textContent=txt;
+  item.appendChild(m);
   chat.appendChild(item);
-  chat.scrollTop = chat.scrollHeight;
+  chat.scrollTop=chat.scrollHeight;
 }
 
-/* show first prompt */
+/* first prompt */
 bubble(PROMPTS[0]);
+inp.focus();
 
-/* capture keystrokes */
-inp.onkeydown = e => ks.push({t:Date.now(),k:e.key});
+/* keystroke & emoji logging */
+function logEvent(label){
+  ks.push({t:Date.now(),k:label});
+}
+inp.onkeydown = e => logEvent(e.key);
+inp.addEventListener("input",()=>logEvent("edit/emoji"));
 
-/* send handler */
-function handleSend(){
-  const text = inp.value.trim();
+/* emoji picker logic */
+emojiBtn.onclick = () => {
+  picker.style.display = picker.style.display ? "none" : "";
+  picker.focus();
+};
+picker.addEventListener("emoji-click", e=>{
+  inp.value += e.detail.unicode;
+  logEvent(e.detail.unicode);
+  picker.style.display="none";
+  inp.focus();
+});
+
+/* send / enter */
+send.onclick = handleSend;
+inp.addEventListener("keyup",e=>{if(e.key==="Enter") handleSend();});
+
+async function handleSend(){
+  const text=inp.value.trim();
   if(!text) return;
-  /* user bubble */
   bubble(text,true);
 
-  /* store meta & answers */
   if(i===0) meta.email=text;
   if(i===1) meta.name =text;
   answers.push({prompt:PROMPTS[i],answer:text,keystrokes:ks});
-  /* reset for next answer */
   ks=[]; inp.value=""; inp.focus();
 
-  /* next prompt or finish */
   i++;
   if(i<PROMPTS.length){
     setTimeout(()=>bubble(PROMPTS[i]),300);
   }else{
     bubble("✅ Thanks, you’re done!");
-    inp.disabled=true; send.disabled=true;
+    inp.disabled=true; send.disabled=true; emojiBtn.disabled=true;
+
     /* one-row insert */
-    sb.from("interview_submissions").insert({
-      name:meta.name||null,
-      email:meta.email||null,
-      answers:answers,
-      inserted_at:new Date().toISOString()
+    await sb.from("interview_submissions").insert({
+      name  : meta.name  || null,
+      email : meta.email || null,
+      answers: answers,
+      inserted_at: new Date().toISOString()
     });
   }
 }
-/* click or Enter */
-send.onclick = handleSend;
-inp.addEventListener("keyup",e=>{if(e.key==="Enter") handleSend();});
 </script>
 </body>
 </html>
