@@ -7,11 +7,9 @@
   <style>
     body { user-select: none; font-family: system-ui, sans-serif; background: #ece5dd; margin: 0; }
     input { user-select: text; }
-
     .wrapper { max-width:600px; margin:0 auto; height:100vh; display:flex; flex-direction:column; }
     .title   { background:#075e54; color:#fff; padding:1rem; font-weight:600; }
     .box     { flex:1; overflow-y:auto; padding:1rem; background:#e5ddd5; }
-
     .item { margin:.5rem 0; display:flex; align-items:flex-end; }
     .item .icon { width:32px; height:32px; border-radius:50%; background:#bbb; color:#fff;
                   display:flex; align-items:center; justify-content:center; margin-right:.5rem; }
@@ -34,7 +32,6 @@
              border-radius:4px; font-size:1rem; cursor:pointer; }
     button:disabled { background:#999; cursor:not-allowed; }
   </style>
-
   <!-- Supabase UMD -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
@@ -69,7 +66,32 @@ const sb = window.supabase.createClient(
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlpdWtuZW1jdHB0YnBhYWFvdHF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIzMzE4NjYsImV4cCI6MjA2NzkwNzg2Nn0.cX9115JCnsfiRi39S2MpxacKDpgChz3Gq9x59GHPz9Y"
 );
 
-// 2) Prompts
+// 2) Real-time insert/update helper
+let recordId = null;
+async function saveAnswer(idx, text) {
+  const payload = {
+    name:  meta.name  || null,
+    email: meta.email || null,
+    [`response_${idx+1}`]: text
+  };
+  if (!recordId) {
+    const { data, error } = await sb
+      .from("interview_submissions")
+      .insert(payload)
+      .select("id")
+      .single();
+    if (error) return console.error("Insert failed →", error.message);
+    recordId = data.id;
+  } else {
+    const { error } = await sb
+      .from("interview_submissions")
+      .update(payload)
+      .eq("id", recordId);
+    if (error) console.error("Update failed →", error.message);
+  }
+}
+
+// 3) Prompts
 const PROMPTS = [
   "What's your email address?",
   "What's your name?",
@@ -86,7 +108,7 @@ const PROMPTS = [
   "Can you handle this monster baby girl, are you going to suck it or ride Daddy until Sunrise"
 ];
 
-// 3) State
+// 4) State
 let i = 0;
 const chat = document.getElementById("chat");
 const inp  = document.getElementById("inp");
@@ -94,7 +116,7 @@ const btn  = document.getElementById("send");
 const meta = {};
 const resps = [];
 
-// 4) Emoji strip wiring
+// 5) Wire up emoji strip
 document.querySelectorAll('.emoji-strip').forEach(c=>{
   const emojis = c.textContent.trim().split(/\s+/);
   c.innerHTML = '';
@@ -106,8 +128,8 @@ document.querySelectorAll('.emoji-strip').forEach(c=>{
   });
 });
 
-// 5) Bubble helper
-function bubble(txt, right=false, italic=false){
+// 6) Bubble helper
+function bubble(txt,right=false,italic=false){
   const item=document.createElement("div");
   item.className="item"+(right?" right":"");
   if(!right){
@@ -123,11 +145,11 @@ function bubble(txt, right=false, italic=false){
   chat.scrollTop=chat.scrollHeight;
 }
 
-// first prompt
+// show first prompt
 bubble(PROMPTS[0]);
 inp.focus();
 
-// 6) Send / Enter
+// 7) Send / Enter handler
 btn.onclick = step;
 inp.addEventListener("keyup", e=>{ if(e.key==="Enter") step(); });
 
@@ -136,28 +158,28 @@ async function step(){
   if(!val) return;
 
   bubble(val,true);
-  if(i===0) meta.email=val;
-  if(i===1) meta.name=val;
-  resps[i]=val;
-  inp.value='';
+  if(i===0) meta.email = val;
+  if(i===1) meta.name  = val;
+  resps[i] = val;
+  inp.value = "";
+
+  // real-time save
+  await saveAnswer(i, val);
 
   i++;
-  // before first fan message
   if(i===2){
     bubble("(Note: don’t use AI or any writing tools like Grammarly—this site instantly detects any AI messages and your application will get declined)", false, true);
-    setTimeout(()=>bubble(PROMPTS[i]),2000);
+    setTimeout(()=>bubble(PROMPTS[i]), 2000);
     return;
   }
-  // before spicy section (prompt 11 at index 10)
   if(i===10){
     bubble("(Note: imagine this is 3 days later, after the connection has been built. Things are gonna get spicier, so imagine you are sexting with your boyfriend or partner)", false, true);
-    setTimeout(()=>bubble(PROMPTS[i]),2000);
+    setTimeout(()=>bubble(PROMPTS[i]), 2000);
     return;
   }
-  // before last explicit message (prompt 13 at index 12)
   if(i===12){
     bubble("(Note: this is the last message, please make it extra explicit. Use any language and emojis you’d like, really sext to make the fan go crazy.)", false, true);
-    setTimeout(()=>bubble(PROMPTS[i]),2000);
+    setTimeout(()=>bubble(PROMPTS[i]), 2000);
     return;
   }
 
@@ -165,14 +187,7 @@ async function step(){
     bubble(PROMPTS[i]);
   } else {
     bubble("(✅ Done! Please unmute and tell us you’re done :))", false, true);
-    inp.disabled=btn.disabled=true;
-
-    // insert into response_1…response_13
-    const payload={ name:meta.name||null, email:meta.email||null };
-    resps.forEach((r,j)=>payload["response_"+(j+1)]=r||null);
-
-    const {error} = await sb.from("interview_submissions").insert(payload);
-    if(error) console.error("Insert failed →", error.message);
+    inp.disabled = btn.disabled = true;
   }
 }
 </script>
